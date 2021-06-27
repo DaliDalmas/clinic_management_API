@@ -13,6 +13,8 @@ from django.contrib.auth import authenticate
 
 from rest_framework.response import Response
 
+from .userauthentication import authentication
+from rest_framework.permissions import IsAuthenticated
 def get_random(length):
     return ''.join(random.choices(string.ascii_uppercase+string.digits,k=length))
 
@@ -66,20 +68,7 @@ class RegisterView(APIView):
 
         return Response({"msg":"User created."})
 
-def verify_token(token):
-    #decode the token
-    try:
-        decoded_data = jwt.decode(token,settings.SECRET_KEY, algorithms="HS256")
-        print("First try passed")
-    except Exception as e:
-        print(e)
-        return None
-    #check if token has expired
-    exp = decoded_data["exp"]
-    if datetime.now().timestamp() > exp:
-        return None
-    else:
-        return decoded_data
+
 
 
 class RefreshView(APIView):
@@ -93,7 +82,7 @@ class RefreshView(APIView):
         except Jwt.DoesNotExist:
             return Response({"error":"refresh token not found."},status="400")
 
-        if not verify_token(serializer.validated_data["refresh_token"]):
+        if not authentication.verify_token(serializer.validated_data["refresh_token"]):
             return Response({"error":"Token is invalid or has expired"})
 
         else:
@@ -105,3 +94,11 @@ class RefreshView(APIView):
             active_jwt.save()
 
             return Response({"access":access, "refresh":refresh})
+
+
+    
+class GetSecuredInfo(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        print(request.user)
+        return Response({"data":"This is a secured info!"})
